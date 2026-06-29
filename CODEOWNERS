@@ -1,0 +1,14 @@
+# CODEOWNERS — rendered by repo-workflow-bootstrap. Path -> owner routing.
+#
+# On github this file is routing-only unless the branch-protection rule enables
+# code-owner review. Spike S4: Gitea 1.25.4 exposes NO code-owner-enforcement field,
+# so on Gitea this stays routing-only and team-mode review rests on required_approvals.
+# On GitHub, require_code_owner_reviews makes these paths require owner sign-off.
+#
+# Gate-critical paths: editing any of these can neuter the merge gate, so they are owned
+# to force owner review wherever code-owner enforcement is active (team mode).
+/CODEOWNERS                 @RenzoF
+/.gitea/workflows/          @RenzoF
+/.github/workflows/         @RenzoF
+/scripts/rwb-ac-check.sh        @RenzoF
+# rwb-managed:v1 sha256=c4699f1e6391a8c255d0656fa420e12f76899cd67f073dee616a930f1c062986
