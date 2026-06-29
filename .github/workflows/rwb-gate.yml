@@ -1,0 +1,55 @@
+---
+# .github/workflows/rwb-gate.yml — repo-workflow-bootstrap criteria gate (GitHub Actions).
+# Always-on, always-required gate. The gate job has NO dependency jobs, so its check-run
+# registers EARLY (spike S5/#10e: a dependency-gated if:always() aggregate registers LATE,
+# only after fan-out; a dependency-free job registers almost immediately) -> it is the
+# always-on required context, green-smoke-tested before merge. The required context string is
+# harvested live from the forge, never derived from this YAML: with the job display name
+# rwb-gate the GitHub check-run context is exactly "rwb-gate" (namespaced, decision #22).
+name: rwb-gate
+"on":
+  pull_request:
+    # 'edited' is LOAD-BEARING and is NOT in GitHub's default pull_request activity set
+    # ([opened, synchronize, reopened]): ticking AC checkboxes edits the PR body and MUST
+    # re-run the gate. Manual on-demand triggers are intentionally omitted (decisions
+    # #14/#19: a manually triggered run has no pull_request payload and could green the
+    # required context outside a real PR).
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+# GitHub HONORS workflow-level permissions (unlike Gitea, spike S3). The restricted-default
+# token is contents:read only, which would break the checker's issue read -> declare the
+# least-privilege set the AC-checker needs (issues:read drives the condition-3 cross-check).
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+  checks: read
+jobs:
+  rwb-gate:
+    # Job id == workflow name -> harvested GitHub status-check context is exactly "rwb-gate"
+    # (decision #22). No dependency jobs -> check-run registers EARLY (spike S5).
+    runs-on: ubuntu-latest
+    steps:
+      # GitHub-hosted runners HAVE node, so actions/checkout (a JS action) works here -- the
+      # deliberate divergence from the Gitea alpine runner, which has no node and must use a
+      # node-free shell shallow-clone. Check out the PR head to obtain the SHARED forge-neutral
+      # AC-checker, then run it.
+      - name: Check out PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Acceptance-criteria gate (conditions 1-3)
+        env:
+          # The default token is NOT exported as an env var -- map it from github.token so
+          # the AC-checker can read the linked issue (condition 1 + the condition-3 cross-check).
+          GITHUB_TOKEN: ${{ github.token }}
+          # GITHUB_API_URL is auto-provided (https://api.github.com); set it explicitly for
+          # determinism -- the checker fail-closes without a resolvable https API base.
+          GITHUB_API_URL: ${{ github.api_url }}
+          # GITHUB_REPOSITORY is auto-provided by GitHub Actions; set explicitly for
+          # determinism and Gitea-parity (the checker reads it from the environment).
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        # The AC-checker reads GITHUB_EVENT_PATH natively (GitHub Actions default) and is
+        # forge-neutral / POSIX-sh safe -- the SAME script the Gitea gate runs.
+        # It parses the PR event payload + fetches the linked issue via the API; it does NOT
+        # read repo code.
+        run: sh scripts/rwb-ac-check.sh
